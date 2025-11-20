@@ -13,7 +13,7 @@ A Go-based MCP (Model Context Protocol) proxy with profile-based filtering for t
 
 ## Status
 
-**Phase 3 Complete**: Per-Server Endpoints & Advanced Routing
+**Phase 3 Complete**: Per-Server Endpoints & Advanced Routing + Integration Testing
 
 - ✅ Per-server MCP proxy wrappers (isolated filtering per upstream)
 - ✅ HTTP routing: `/mcp` (hub) + `/mcp/<server>` (per-server)
@@ -21,6 +21,7 @@ A Go-based MCP (Model Context Protocol) proxy with profile-based filtering for t
 - ✅ No server ID prefixing on per-server endpoints (clean names)
 - ✅ Independent filtering per endpoint
 - ✅ Comprehensive test coverage (38 tests passing)
+- ✅ **Integration tested with Context7 MCP server** (see [INTEGRATION_TEST_RESULTS.md](./INTEGRATION_TEST_RESULTS.md))
 
 **Previous Phases**:
 - Phase 2: Profile-based filtering (ProfileEngine, glob matching, list/call-phase filtering)

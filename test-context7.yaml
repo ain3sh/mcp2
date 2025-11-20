@@ -1,0 +1,37 @@
+# Test configuration for Context7 MCP server integration
+defaultProfile: dev
+
+servers:
+  context7:
+    displayName: "Context7 Documentation"
+    transport:
+      kind: stdio
+      command: npx
+      args: ["-y", "@upstash/context7-mcp"]
+      env: {}
+
+profiles:
+  dev:
+    description: "Full access for testing"
+    servers:
+      context7:
+        tools:
+          allow: ["*"]
+        resources: {}
+        prompts: {}
+
+  safe:
+    description: "Read-only documentation access"
+    servers:
+      context7:
+        tools:
+          allow: ["resolve-library-id", "get-library-docs"]
+          deny: []
+        resources: {}
+        prompts: {}
+
+hub:
+  enabled: true
+  prefixServerIDs: true
+
+exposePerServer: true
