@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/ain3sh/mcp2/internal/config"
+	"github.com/ain3sh/mcp2/internal/profile"
 	"github.com/ain3sh/mcp2/internal/upstream"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -16,11 +17,12 @@ type Hub struct {
 	server         *mcp.Server
 	manager        *upstream.Manager
 	config         *config.RootConfig
+	profileEngine  *profile.Engine
 	prefixEnabled  bool
 }
 
-// NewHub creates a new hub server.
-func NewHub(cfg *config.RootConfig, manager *upstream.Manager) *Hub {
+// NewHub creates a new hub server with profile-based filtering.
+func NewHub(cfg *config.RootConfig, manager *upstream.Manager, profileName string) *Hub {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "mcp2-hub",
 		Version: "0.1.0",
@@ -30,6 +32,7 @@ func NewHub(cfg *config.RootConfig, manager *upstream.Manager) *Hub {
 		server:        server,
 		manager:       manager,
 		config:        cfg,
+		profileEngine: profile.NewEngine(cfg, profileName),
 		prefixEnabled: cfg.Hub.PrefixServerIDs,
 	}
 
@@ -95,7 +98,7 @@ func (h *Hub) registerPromptHandlers() {
 	})
 }
 
-// handleToolsList aggregates tools from all upstream servers.
+// handleToolsList aggregates and filters tools from all upstream servers.
 func (h *Hub) handleToolsList(ctx context.Context) (mcp.Result, error) {
 	var allTools []*mcp.Tool
 
@@ -107,6 +110,11 @@ func (h *Hub) handleToolsList(ctx context.Context) (mcp.Result, error) {
 		}
 
 		for _, tool := range result.Tools {
+			// Filter based on profile
+			if !h.profileEngine.IsToolAllowed(u.ID, tool.Name) {
+				continue
+			}
+
 			// Add server prefix if enabled
 			if h.prefixEnabled {
 				tool.Name = fmt.Sprintf("%s:%s", u.ID, tool.Name)
@@ -158,6 +166,11 @@ func (h *Hub) handleToolsCall(ctx context.Context, req mcp.Request) (mcp.Result,
 		return nil, fmt.Errorf("upstream server %q not found", serverID)
 	}
 
+	// Check if tool is allowed by profile (call-phase check)
+	if !h.profileEngine.IsToolAllowed(serverID, actualToolName) {
+		return nil, fmt.Errorf("tool %q is not allowed by profile", toolName)
+	}
+
 	// Call the tool on the upstream
 	return u.Session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      actualToolName,
@@ -165,7 +178,7 @@ func (h *Hub) handleToolsCall(ctx context.Context, req mcp.Request) (mcp.Result,
 	})
 }
 
-// handleResourcesList aggregates resources from all upstream servers.
+// handleResourcesList aggregates and filters resources from all upstream servers.
 func (h *Hub) handleResourcesList(ctx context.Context) (mcp.Result, error) {
 	var allResources []*mcp.Resource
 
@@ -176,6 +189,11 @@ func (h *Hub) handleResourcesList(ctx context.Context) (mcp.Result, error) {
 		}
 
 		for _, resource := range result.Resources {
+			// Filter based on profile
+			if !h.profileEngine.IsResourceAllowed(u.ID, resource.URI) {
+				continue
+			}
+
 			// Prefix URI if needed
 			if h.prefixEnabled {
 				resource.URI = fmt.Sprintf("%s:%s", u.ID, resource.URI)
@@ -221,10 +239,15 @@ func (h *Hub) handleResourcesRead(ctx context.Context, req mcp.Request) (mcp.Res
 		return nil, err
 	}
 
+	// Check if resource is allowed by profile (call-phase check)
+	if !h.profileEngine.IsResourceAllowed(serverID, actualURI) {
+		return nil, fmt.Errorf("resource %q is not allowed by profile", uri)
+	}
+
 	return u.Session.ReadResource(ctx, &mcp.ReadResourceParams{URI: actualURI})
 }
 
-// handlePromptsList aggregates prompts from all upstream servers.
+// handlePromptsList aggregates and filters prompts from all upstream servers.
 func (h *Hub) handlePromptsList(ctx context.Context) (mcp.Result, error) {
 	var allPrompts []*mcp.Prompt
 
@@ -235,6 +258,11 @@ func (h *Hub) handlePromptsList(ctx context.Context) (mcp.Result, error) {
 		}
 
 		for _, prompt := range result.Prompts {
+			// Filter based on profile
+			if !h.profileEngine.IsPromptAllowed(u.ID, prompt.Name) {
+				continue
+			}
+
 			if h.prefixEnabled {
 				prompt.Name = fmt.Sprintf("%s:%s", u.ID, prompt.Name)
 			}
@@ -280,6 +308,11 @@ func (h *Hub) handlePromptsGet(ctx context.Context, req mcp.Request) (mcp.Result
 	u, err := h.manager.Get(serverID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if prompt is allowed by profile (call-phase check)
+	if !h.profileEngine.IsPromptAllowed(serverID, actualPromptName) {
+		return nil, fmt.Errorf("prompt %q is not allowed by profile", promptName)
 	}
 
 	return u.Session.GetPrompt(ctx, &mcp.GetPromptParams{

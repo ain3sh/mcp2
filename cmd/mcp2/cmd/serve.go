@@ -86,7 +86,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("hub must be enabled in config")
 	}
 
-	hub := proxy.NewHub(cfg, manager)
+	hub := proxy.NewHub(cfg, manager, activeProfile)
 
 	if stdio {
 		// Run in stdio mode

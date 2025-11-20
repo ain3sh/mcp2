@@ -13,16 +13,19 @@ A Go-based MCP (Model Context Protocol) proxy with profile-based filtering for t
 
 ## Status
 
-**Phase 1 Complete**: Core infrastructure and basic proxy functionality
+**Phase 2 Complete**: Profile-based filtering
 
-- Config loading and validation (YAML/JSON)
-- Upstream manager (stdio and HTTP transports)
-- Hub server with pass-through aggregation
-- CLI commands: `serve`, `validate`
-- Comprehensive tests
+- ✅ ProfileEngine with allow/deny policy queries
+- ✅ Glob pattern matching (*, **, filepath patterns)
+- ✅ List-phase filtering (tools/list, resources/list, prompts/list)
+- ✅ Call-phase blocking (tools/call, resources/read, prompts/get)
+- ✅ CLI command: `effective` to inspect filtering rules
+- ✅ Comprehensive test coverage (all tests passing)
+
+**Previous Phases**:
+- Phase 1: Core infrastructure (config, upstream manager, hub server)
 
 **Coming Next**:
-- Phase 2: Profile-based filtering middleware
 - Phase 3: Per-server endpoints and advanced namespacing
 - Phase 4: `call` and `profiles` CLI commands
 - Phase 5: Integration with f/mcptools
@@ -49,6 +52,13 @@ mcp2 serve -c config.yaml --profile safe --port 8210
 
 # Stdio mode
 mcp2 serve -c config.yaml --profile safe --stdio
+```
+
+### Inspect Effective Filtering Rules
+
+```bash
+# Show what tools/resources/prompts are allowed for a server in a profile
+mcp2 effective -c config.yaml -p safe -s filesystem
 ```
 
 ## Configuration
