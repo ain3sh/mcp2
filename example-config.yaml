@@ -1,0 +1,51 @@
+# Example mcp2 configuration file
+# This demonstrates the structure for a basic setup
+
+defaultProfile: safe
+
+servers:
+  filesystem:
+    displayName: "Local Files"
+    transport:
+      kind: stdio
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+      env:
+        NODE_ENV: production
+
+  # Example HTTP server (commented out)
+  # github:
+  #   displayName: "GitHub"
+  #   transport:
+  #     kind: http
+  #     url: "https://mcp-github.example.com/mcp"
+  #     headers:
+  #       Authorization: "Bearer ${GITHUB_TOKEN}"
+
+profiles:
+  safe:
+    description: "LLM-facing surface; minimal write and delete"
+    servers:
+      filesystem:
+        tools:
+          allow: ["list_directory", "read_file"]
+          deny: ["write_file", "delete_file"]
+        resources:
+          allow: ["file://**"]
+          deny: ["file://secret/**"]
+        prompts: {}
+
+  dev:
+    description: "Personal dev; full power"
+    servers:
+      filesystem:
+        tools:
+          allow: ["*"]
+        resources: {}
+        prompts: {}
+
+hub:
+  enabled: true
+  prefixServerIDs: true
+
+exposePerServer: false

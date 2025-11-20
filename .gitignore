@@ -1,0 +1,5 @@
+AGENT_REMINDERS.md
+mcp2
+*.test
+*.out
+coverage.txt
