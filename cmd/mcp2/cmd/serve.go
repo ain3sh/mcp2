@@ -96,17 +96,40 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	// Run in HTTP mode
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	log.Printf("Starting mcp2 hub on http://%s/mcp", addr)
 
-	// Create HTTP handler
-	handler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
+	// Create HTTP multiplexer for routing
+	mux := http.NewServeMux()
+
+	// Register hub endpoint
+	log.Printf("Registering hub endpoint: http://%s/mcp", addr)
+	hubHandler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 		return hub.Server()
 	}, nil)
+	mux.Handle("/mcp", hubHandler)
+
+	// Register per-server endpoints if enabled
+	if cfg.ExposePerServer {
+		log.Println("Per-server endpoints enabled")
+		for _, u := range manager.List() {
+			// Create proxy and capture it properly in closure
+			serverProxy := proxy.NewPerServerProxy(cfg, u, activeProfile)
+			path := fmt.Sprintf("/mcp/%s", u.ID)
+
+			// Capture serverProxy in a new variable for the closure
+			sp := serverProxy
+			serverHandler := mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
+				return sp.Server()
+			}, nil)
+			mux.Handle(path, serverHandler)
+
+			log.Printf("  Registered server endpoint: http://%s%s", addr, path)
+		}
+	}
 
 	// Create HTTP server
 	httpServer := &http.Server{
 		Addr:    addr,
-		Handler: handler,
+		Handler: mux,
 	}
 
 	// Handle graceful shutdown

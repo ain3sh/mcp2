@@ -13,20 +13,20 @@ A Go-based MCP (Model Context Protocol) proxy with profile-based filtering for t
 
 ## Status
 
-**Phase 2 Complete**: Profile-based filtering
+**Phase 3 Complete**: Per-Server Endpoints & Advanced Routing
 
-- ✅ ProfileEngine with allow/deny policy queries
-- ✅ Glob pattern matching (*, **, filepath patterns)
-- ✅ List-phase filtering (tools/list, resources/list, prompts/list)
-- ✅ Call-phase blocking (tools/call, resources/read, prompts/get)
-- ✅ CLI command: `effective` to inspect filtering rules
-- ✅ Comprehensive test coverage (all tests passing)
+- ✅ Per-server MCP proxy wrappers (isolated filtering per upstream)
+- ✅ HTTP routing: `/mcp` (hub) + `/mcp/<server>` (per-server)
+- ✅ Configurable via `exposePerServer` flag
+- ✅ No server ID prefixing on per-server endpoints (clean names)
+- ✅ Independent filtering per endpoint
+- ✅ Comprehensive test coverage (38 tests passing)
 
 **Previous Phases**:
+- Phase 2: Profile-based filtering (ProfileEngine, glob matching, list/call-phase filtering)
 - Phase 1: Core infrastructure (config, upstream manager, hub server)
 
 **Coming Next**:
-- Phase 3: Per-server endpoints and advanced namespacing
 - Phase 4: `call` and `profiles` CLI commands
 - Phase 5: Integration with f/mcptools
 
@@ -59,6 +59,20 @@ mcp2 serve -c config.yaml --profile safe --stdio
 ```bash
 # Show what tools/resources/prompts are allowed for a server in a profile
 mcp2 effective -c config.yaml -p safe -s filesystem
+```
+
+### Access Per-Server Endpoints
+
+When `exposePerServer: true` in your config:
+
+```bash
+# Start server with per-server endpoints
+mcp2 serve -c config.yaml -p safe --port 8210
+
+# Endpoints:
+# http://localhost:8210/mcp              - Hub (aggregates all servers with prefixing)
+# http://localhost:8210/mcp/filesystem   - Direct access to filesystem server only
+# http://localhost:8210/mcp/github       - Direct access to github server only
 ```
 
 ## Configuration
@@ -153,9 +167,23 @@ Multiple Upstream MCP Servers (stdio/HTTP)
 
 - **Config Loader**: Parses YAML/JSON configuration
 - **Upstream Manager**: Manages connections to upstream servers
-- **Hub Server**: Aggregates upstreams into single MCP endpoint
+- **Hub Server**: Aggregates upstreams into single MCP endpoint with prefixing
+- **Per-Server Proxies** (Phase 3): Individual filtered endpoints per upstream
 - **Profile Engine** (Phase 2): Enforces filtering policies
 - **CLI Layer**: Cobra-based command interface
+
+### HTTP Routing (Phase 3)
+
+```
+Client Request
+     ↓
+HTTP Router (ServeMux)
+     ├─→ /mcp              → Hub Server (aggregated, prefixed)
+     ├─→ /mcp/filesystem   → Filesystem Proxy (isolated, no prefix)
+     └─→ /mcp/github       → GitHub Proxy (isolated, no prefix)
+```
+
+Each endpoint enforces the same profile-based filtering independently.
 
 ## Development
 

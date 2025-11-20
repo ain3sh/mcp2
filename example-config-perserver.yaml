@@ -1,0 +1,41 @@
+# Example configuration with per-server endpoints enabled
+defaultProfile: safe
+
+servers:
+  filesystem:
+    displayName: "Local Files"
+    transport:
+      kind: stdio
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+      env:
+        NODE_ENV: production
+
+profiles:
+  safe:
+    description: "LLM-facing surface; minimal write and delete"
+    servers:
+      filesystem:
+        tools:
+          allow: ["list_directory", "read_file"]
+          deny: ["write_file", "delete_file"]
+        resources:
+          allow: ["file://**"]
+          deny: ["file://secret/**"]
+        prompts: {}
+
+  dev:
+    description: "Personal dev; full power"
+    servers:
+      filesystem:
+        tools:
+          allow: ["*"]
+        resources: {}
+        prompts: {}
+
+hub:
+  enabled: true
+  prefixServerIDs: true
+
+# Enable per-server endpoints (Phase 3 feature)
+exposePerServer: true
