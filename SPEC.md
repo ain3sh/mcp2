@@ -618,14 +618,24 @@ Goal: one hub endpoint + per-server endpoints, under policies.
 
 Goal: you can use the exact same filtered surface in CLI mode.
 
-## Phase 5: mcptools integration helpers
+## Phase 5: ~~mcptools integration helpers~~ **OBSOLETE**
 
-* Add optional `mcp2 init` or `mcp2 import-inventory` that:
+**Status**: This phase is obsolete. After analysis, f/mcptools is a separate complementary tool (see `MCPTOOLS_COMPARISON.md`). We will not directly integrate or import from mcptools.
 
-  * Reads JSON from mcptools listing output.
-  * Generates/updates config sections for servers + profiles.
+**Instead**: See `REMAINING_WORK.md` for production-critical features that replace this phase:
+- Upstream authentication (headers wiring)
+- SSE transport support
+- Hot config reload
+- Port/host in config file
+- Structured logging
+- Performance optimizations
 
-Goal: reduce manual editing when adding new upstreams.
+**Original plan** (no longer relevant):
+* ~~Add optional `mcp2 init` or `mcp2 import-inventory`~~
+* ~~Reads JSON from mcptools listing output~~
+* ~~Generates/updates config sections for servers + profiles~~
+
+**New approach**: Users can use mcptools separately for exploration/debugging, then manually configure mcp2 for production filtering/aggregation.
 
 ## Phase 6 (Optional / Future): TUI & per-request profiles
 
