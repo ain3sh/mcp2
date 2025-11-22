@@ -1,0 +1,9 @@
+AGENT_REMINDERS.md
+mcp2
+*.test
+*.out
+coverage.txt
+
+# Integration test clients (temporary)
+test-client.go
+test-per-server.go
