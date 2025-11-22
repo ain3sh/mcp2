@@ -118,6 +118,9 @@ func (m *Manager) Close() error {
 		}
 	}
 
+	// Clear the upstreams map to allow future reconnects
+	m.upstreams = make(map[string]*Upstream)
+
 	if len(errs) > 0 {
 		return fmt.Errorf("errors closing upstreams: %v", errs)
 	}

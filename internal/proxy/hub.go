@@ -146,9 +146,12 @@ func (h *Hub) handleToolsCall(ctx context.Context, req mcp.Request) (mcp.Result,
 		serverID = parts[0]
 		actualToolName = parts[1]
 	} else {
-		// Without prefixing, we need to find which upstream has this tool
-		// For now, try all upstreams until one succeeds (simple but not optimal)
+		// Without prefixing, try only upstreams where the profile allows this tool
+		var lastErr error
 		for _, u := range h.manager.List() {
+			if !h.profileEngine.IsToolAllowed(u.ID, toolName) {
+				continue
+			}
 			result, err := u.Session.CallTool(ctx, &mcp.CallToolParams{
 				Name:      toolName,
 				Arguments: callReq.Params.Arguments,
@@ -156,8 +159,12 @@ func (h *Hub) handleToolsCall(ctx context.Context, req mcp.Request) (mcp.Result,
 			if err == nil {
 				return result, nil
 			}
+			lastErr = err
 		}
-		return nil, fmt.Errorf("tool %q not found in any upstream", toolName)
+		if lastErr != nil {
+			return nil, fmt.Errorf("tool %q allowed by profile but call failed: %v", toolName, lastErr)
+		}
+		return nil, fmt.Errorf("tool %q not found in any upstream or not allowed by profile", toolName)
 	}
 
 	// Get the upstream server
@@ -224,14 +231,22 @@ func (h *Hub) handleResourcesRead(ctx context.Context, req mcp.Request) (mcp.Res
 		serverID = parts[0]
 		actualURI = parts[1]
 	} else {
-		// Try all upstreams
+		// Try only upstreams where the profile allows this resource
+		var lastErr error
 		for _, u := range h.manager.List() {
+			if !h.profileEngine.IsResourceAllowed(u.ID, uri) {
+				continue
+			}
 			result, err := u.Session.ReadResource(ctx, &mcp.ReadResourceParams{URI: uri})
 			if err == nil {
 				return result, nil
 			}
+			lastErr = err
 		}
-		return nil, fmt.Errorf("resource %q not found in any upstream", uri)
+		if lastErr != nil {
+			return nil, fmt.Errorf("resource %q allowed by profile but read failed: %v", uri, lastErr)
+		}
+		return nil, fmt.Errorf("resource %q not found in any upstream or not allowed by profile", uri)
 	}
 
 	u, err := h.manager.Get(serverID)
@@ -292,8 +307,12 @@ func (h *Hub) handlePromptsGet(ctx context.Context, req mcp.Request) (mcp.Result
 		serverID = parts[0]
 		actualPromptName = parts[1]
 	} else {
-		// Try all upstreams
+		// Try only upstreams where the profile allows this prompt
+		var lastErr error
 		for _, u := range h.manager.List() {
+			if !h.profileEngine.IsPromptAllowed(u.ID, promptName) {
+				continue
+			}
 			result, err := u.Session.GetPrompt(ctx, &mcp.GetPromptParams{
 				Name:      promptName,
 				Arguments: getReq.Params.Arguments,
@@ -301,8 +320,12 @@ func (h *Hub) handlePromptsGet(ctx context.Context, req mcp.Request) (mcp.Result
 			if err == nil {
 				return result, nil
 			}
+			lastErr = err
 		}
-		return nil, fmt.Errorf("prompt %q not found in any upstream", promptName)
+		if lastErr != nil {
+			return nil, fmt.Errorf("prompt %q allowed by profile but get failed: %v", promptName, lastErr)
+		}
+		return nil, fmt.Errorf("prompt %q not found in any upstream or not allowed by profile", promptName)
 	}
 
 	u, err := h.manager.Get(serverID)

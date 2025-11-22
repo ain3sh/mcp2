@@ -18,8 +18,6 @@ Shows which profile is configured as the default.`,
 
 func init() {
 	rootCmd.AddCommand(profilesCmd)
-
-	profilesCmd.Flags().StringVarP(&configPath, "config", "c", "", "Path to config file")
 }
 
 func runProfiles(cmd *cobra.Command, args []string) error {

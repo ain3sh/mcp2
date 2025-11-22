@@ -45,7 +45,7 @@ func Load(path string) (*RootConfig, error) {
 // ExpandEnvVars expands environment variables in the configuration.
 // This is useful for things like ${GITHUB_TOKEN} in headers.
 func (cfg *RootConfig) ExpandEnvVars() {
-	for _, server := range cfg.Servers {
+	for serverID, server := range cfg.Servers {
 		// Expand environment variables in command
 		server.Transport.Command = os.ExpandEnv(server.Transport.Command)
 
@@ -66,5 +66,8 @@ func (cfg *RootConfig) ExpandEnvVars() {
 		for k, v := range server.Transport.Headers {
 			server.Transport.Headers[k] = os.ExpandEnv(v)
 		}
+
+		// Write the modified server back to the map
+		cfg.Servers[serverID] = server
 	}
 }
