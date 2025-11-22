@@ -847,3 +847,522 @@ mcp2 is production-ready when:
 ✅ Documented integration with mcptools
 
 **When these are done, mcp2 is the networking powerhouse ready for enterprise deployment.**
+
+---
+
+## Resources & References
+
+This section provides comprehensive references for implementing the remaining work. Resources are organized by category with specific file paths, URLs, and key anchor points.
+
+---
+
+### 1. MCP Protocol Specification
+
+**Official Documentation:**
+- **MCP Specification (Latest)**: https://modelcontextprotocol.io/specification
+- **Protocol Overview**: https://modelcontextprotocol.io/docs/concepts/architecture
+- **Transport Specification**: https://modelcontextprotocol.io/specification/2025-03-26/basic/transports
+  - Streamable HTTP (recommended): https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/transports/#http-with-sse
+  - SSE Transport (legacy 2024-11-05): https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/transports/#http-with-sse
+  - Stdio Transport: https://spec.modelcontextprotocol.io/specification/basic/transports/#stdio
+
+**Key Concepts:**
+- **Tools**: https://modelcontextprotocol.io/docs/concepts/tools
+- **Resources**: https://modelcontextprotocol.io/docs/concepts/resources
+- **Prompts**: https://modelcontextprotocol.io/docs/concepts/prompts
+- **Sampling**: https://modelcontextprotocol.io/docs/concepts/sampling
+
+**Protocol Messages:**
+- JSON-RPC 2.0 format
+- Message types: requests, responses, notifications
+- Method naming: `tools/list`, `tools/call`, `resources/read`, etc.
+
+---
+
+### 2. Official MCP Go SDK
+
+**Repository:**
+- **GitHub**: https://github.com/modelcontextprotocol/go-sdk
+- **Go Package**: `github.com/modelcontextprotocol/go-sdk/mcp`
+- **Version Used**: v1.1.0 (see go.mod)
+
+**Key SDK Documentation (via `go doc`):**
+
+**Transports:**
+```bash
+go doc github.com/modelcontextprotocol/go-sdk/mcp.Transport
+go doc github.com/modelcontextprotocol/go-sdk/mcp.StreamableClientTransport
+go doc github.com/modelcontextprotocol/go-sdk/mcp.SSEClientTransport
+go doc github.com/modelcontextprotocol/go-sdk/mcp.CommandTransport  # For stdio
+go doc github.com/modelcontextprotocol/go-sdk/mcp.StdioTransport
+```
+
+**Core Types:**
+```bash
+go doc github.com/modelcontextprotocol/go-sdk/mcp.Client
+go doc github.com/modelcontextprotocol/go-sdk/mcp.Server
+go doc github.com/modelcontextprotocol/go-sdk/mcp.ClientSession
+go doc github.com/modelcontextprotocol/go-sdk/mcp.Implementation
+```
+
+**Request/Response Types:**
+```bash
+go doc github.com/modelcontextprotocol/go-sdk/mcp.CallToolParams
+go doc github.com/modelcontextprotocol/go-sdk/mcp.CallToolResult
+go doc github.com/modelcontextprotocol/go-sdk/mcp.ListToolsParams
+go doc github.com/modelcontextprotocol/go-sdk/mcp.ListToolsResult
+go doc github.com/modelcontextprotocol/go-sdk/mcp.ReadResourceParams
+go doc github.com/modelcontextprotocol/go-sdk/mcp.GetPromptParams
+```
+
+**Content Types:**
+```bash
+go doc github.com/modelcontextprotocol/go-sdk/mcp.Content
+go doc github.com/modelcontextprotocol/go-sdk/mcp.TextContent
+go doc github.com/modelcontextprotocol/go-sdk/mcp.ImageContent
+go doc github.com/modelcontextprotocol/go-sdk/mcp.EmbeddedResource
+go doc github.com/modelcontextprotocol/go-sdk/mcp.ResourceContents
+```
+
+**Server Creation:**
+```bash
+go doc github.com/modelcontextprotocol/go-sdk/mcp.NewServer
+go doc github.com/modelcontextprotocol/go-sdk/mcp.NewStreamableHTTPHandler
+go doc github.com/modelcontextprotocol/go-sdk/mcp.MethodHandler
+```
+
+**Critical SDK Fields Referenced in REMAINING_WORK:**
+- `StreamableClientTransport.HTTPClient *http.Client` - For auth header injection
+- `StreamableClientTransport.MaxRetries int` - For retry logic
+- `SSEClientTransport.Endpoint string` - For SSE connections
+- `SSEClientTransport.HTTPClient *http.Client` - For SSE auth
+
+---
+
+### 3. f/mcptools (Complementary Tool)
+
+**Repository:**
+- **GitHub**: https://github.com/f/mcptools
+- **Latest Commit** (as of analysis): 543732d
+
+**Key Blog Post:**
+- **"MCP Inspector vs MCP Tools"**: https://blog.fka.dev/blog/2025-03-27-mcp-inspector-vs-mcp-tools/
+  - Explains design philosophy
+  - Comparison with other MCP tools
+
+**Key Files to Study:**
+
+**Guard Mode Implementation** (Similar to our filtering):
+- `pkg/guard/guard_proxy.go` (415 lines)
+  - Line 88-112: `IsAllowed()` - Pattern matching logic
+  - Line 114-243: Filter response functions for tools/prompts/resources
+  - Line 247-387: `Start()` - Main proxy loop, request/response handling
+  - Line 311-349: Call-phase blocking for tools/resources/prompts
+  - **Key Difference**: Uses JSON unmarshaling, we use SDK types
+
+**Proxy Mode** (Shell script wrapper):
+- `pkg/proxy/proxy.go`
+  - Shows how to register shell scripts as MCP tools
+  - Environment variable passing pattern
+
+**Mock Server**:
+- `pkg/mock/mock.go`
+  - Example of implementing MCP server from scratch
+  - Useful for understanding protocol flow
+
+**Alias Management**:
+- `pkg/alias/alias.go`
+  - Simple JSON config management (~/.mcpt/aliases.json)
+  - Could inspire `mcp2 import-aliases` command
+
+**Transport Detection**:
+- Look for SSE vs HTTP detection logic in command handlers
+- Shows how to handle multiple transport types
+
+**Limitations to Note:**
+- Guard mode is stdio-only (not HTTP)
+- Uses different MCP SDK (mark3labs/mcp-go, not official)
+- Single-server focus (no aggregation)
+
+---
+
+### 4. Go Libraries for Implementation
+
+**For Hot Config Reload (P1.4):**
+- **fsnotify**: https://github.com/fsnotify/fsnotify
+  - File watching for config changes
+  - Cross-platform (Linux inotify, macOS FSEvents, Windows)
+  - Import: `github.com/fsnotify/fsnotify`
+  - Example: Watch file, trigger reload on Write event
+
+**For Structured Logging (P1.5):**
+- **log/slog** (stdlib, Go 1.21+):
+  - Documentation: https://pkg.go.dev/log/slog
+  - Structured logging, levels, JSON/text handlers
+  - No external dependencies
+  
+- **lumberjack** (log rotation):
+  - GitHub: https://github.com/natefinch/lumberjack
+  - Import: `gopkg.in/natefinch/lumberjack.v2`
+  - Features: Size/age/count-based rotation, compression
+  - Example:
+    ```go
+    &lumberjack.Logger{
+        Filename:   "/var/log/mcp2/mcp2.log",
+        MaxSize:    100, // MB
+        MaxBackups: 3,
+        MaxAge:     30, // days
+        Compress:   true,
+    }
+    ```
+
+**Alternative Logging Libraries:**
+- **zap**: https://github.com/uber-go/zap (faster, more features)
+- **logrus**: https://github.com/sirupsen/logrus (popular, mature)
+
+**For HTTP Client Customization (P0.1):**
+- **net/http.RoundTripper** (stdlib):
+  - Documentation: https://pkg.go.dev/net/http#RoundTripper
+  - Custom transport for header injection
+  - Chain-able middleware pattern
+
+---
+
+### 5. Example MCP Servers (For Testing)
+
+**Context7** (Used in our integration tests):
+- **NPM Package**: `@upstash/context7-mcp`
+- **Install**: `npx -y @upstash/context7-mcp`
+- **Transport**: stdio
+- **Tools**: `resolve-library-id`, `get-library-docs`
+- **Use Case**: Library documentation retrieval
+- **Test Config**: See `test-context7.yaml` in repo
+
+**Official MCP Servers:**
+- **Filesystem**: `@modelcontextprotocol/server-filesystem`
+  - Tools: read_file, write_file, list_directory, search_files
+  - Good for basic stdio testing
+  
+- **Everything Server** (Docker):
+  - `docker run -p 3001:3001 --rm -it tzolov/mcp-everything-server:v1`
+  - Provides tools, resources, prompts for comprehensive testing
+  - Useful for SSE transport testing (port 3001/sse)
+
+**GitHub MCP Server** (For auth testing):
+- **Docker**: `ghcr.io/github/github-mcp-server`
+- Requires: `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable
+- Good for testing header authentication
+
+---
+
+### 6. Key Files in mcp2 Codebase
+
+**Configuration System:**
+- `internal/config/types.go`
+  - Line 4-8: `ComponentFilter` - Allow/deny pattern structure
+  - Line 10-15: `ServerProfileConfig` - Per-server filters
+  - Line 17-30: `ServerTransportConfig` - Transport definitions
+  - Line 50-57: `RootConfig` - Main config structure
+  - **Add here**: `ServerListenConfig`, `LoggingConfig`, `ProfileMetadata`
+
+- `internal/config/loader.go`
+  - Line 13-34: `Load()` - YAML/JSON loading
+  - Line 36-58: `ExpandEnvVars()` - Environment variable expansion
+  - **Keep in mind**: Env vars already work for auth headers
+
+- `internal/config/validator.go`
+  - Line 8-41: `Validate()` - Main validation logic
+  - Line 43-78: `validateServerConfig()` - Server-specific validation
+  - **Update here**: Add SSE to valid transport kinds
+
+**Upstream Connection Management:**
+- `internal/upstream/manager.go`
+  - Line 35-83: `Connect()` - Main connection logic
+  - Line 51-66: Transport switching (stdio/http)
+  - Line 127-140: `createStdioTransport()`
+  - Line 143-150: `createHTTPTransport()` **← TODO on line 148**
+  - **Critical**: This is where auth headers need to be wired
+  - **Add here**: `createSSETransport()`, `headerInjector` type
+
+**Profile-Based Filtering:**
+- `internal/profile/engine.go`
+  - Line 12-23: `Engine` - Profile engine structure
+  - Line 46-80: `isAllowed()` - Core filtering logic (allow/deny)
+  - Line 82-91: `matchesAny()` - Pattern matching
+  - Line 93-140: `matchPattern()` - Glob pattern support (*, **, filepath)
+  - **Used by**: Hub and PerServerProxy for filtering
+
+**Hub Aggregation:**
+- `internal/proxy/hub.go`
+  - Line 15-22: `Hub` - Main hub structure
+  - Line 24-45: `NewHub()` - Hub creation with profile
+  - Line 52-99: Middleware registration for tools/resources/prompts
+  - Line 101-127: `handleToolsList()` - **Sequential aggregation** (optimize in P2.7)
+  - Line 129-179: `handleToolsCall()` - Call routing with filtering
+  - Line 181-240: Resource and prompt handlers
+  - **Pattern**: All list handlers follow same structure (aggregate + filter)
+
+**Per-Server Proxy:**
+- `internal/proxy/perserver.go`
+  - Line 13-20: `PerServerProxy` - Isolated server proxy
+  - Line 22-37: `NewPerServerProxy()` - Creation with filtering
+  - Line 44-86: Handler implementations (tools/resources/prompts)
+  - **Key Difference**: No prefixing, direct upstream access
+
+**CLI Commands:**
+- `cmd/mcp2/cmd/serve.go`
+  - Line 38-157: `runServe()` - Main server logic
+  - Line 98-108: HTTP multiplexer setup
+  - Line 110-127: Per-server endpoint registration
+  - Line 129-148: Graceful shutdown
+  - **Update here**: Config reload, logging setup, listen config
+
+- `cmd/mcp2/cmd/profiles.go`
+  - Line 25-119: `runProfiles()` - Profile listing
+  - Shows how to iterate profiles and display info
+
+- `cmd/mcp2/cmd/call.go`
+  - Line 102-110: `connectToMCP2()` - Client connection helper
+  - Line 112-187: Tool calling implementation
+  - Shows usage of SDK client types
+
+- `cmd/mcp2/cmd/effective.go`
+  - Line 28-96: `runEffective()` - Filter inspection
+  - Line 98-131: `displayFilterRules()` - Pretty printing
+  - Good example of using ProfileEngine programmatically
+
+**Testing:**
+- `internal/config/config_test.go` - 12 tests for config loading/validation
+- `internal/profile/engine_test.go` - 21 tests for filtering logic
+- `internal/proxy/perserver_test.go` - 5 tests for per-server proxy
+- **Pattern**: Use testify for assertions, table-driven tests
+
+---
+
+### 7. Reference Implementations & Patterns
+
+**HTTP Header Injection Pattern** (For P0.1):
+```go
+// Pattern from net/http documentation
+type headerInjector struct {
+    base    http.RoundTripper
+    headers map[string]string
+}
+
+func (h *headerInjector) RoundTrip(req *http.Request) (*http.Response, error) {
+    // Clone request to avoid mutating original
+    req2 := req.Clone(req.Context())
+    for k, v := range h.headers {
+        req2.Header.Set(k, v)
+    }
+    return h.base.RoundTrip(req2)
+}
+
+// Usage
+httpClient := &http.Client{
+    Transport: &headerInjector{
+        base:    http.DefaultTransport,
+        headers: serverCfg.Transport.Headers,
+    },
+}
+```
+
+**File Watching Pattern** (For P1.4):
+```go
+// Pattern from fsnotify documentation
+watcher, _ := fsnotify.NewWatcher()
+defer watcher.Close()
+
+watcher.Add(configPath)
+
+for {
+    select {
+    case event := <-watcher.Events:
+        if event.Op&fsnotify.Write == fsnotify.Write {
+            // Reload config
+        }
+    case err := <-watcher.Errors:
+        log.Printf("Watcher error: %v", err)
+    }
+}
+```
+
+**Parallel Goroutine Pattern** (For P2.7):
+```go
+// Pattern for parallel aggregation
+type result struct {
+    data []*mcp.Tool
+    err  error
+}
+
+results := make(chan result, len(upstreams))
+
+for _, u := range upstreams {
+    go func(upstream *upstream.Upstream) {
+        tools, err := fetchTools(ctx, upstream)
+        results <- result{data: tools, err: err}
+    }(u)
+}
+
+var allTools []*mcp.Tool
+for i := 0; i < len(upstreams); i++ {
+    res := <-results
+    if res.err == nil {
+        allTools = append(allTools, res.data...)
+    }
+}
+```
+
+---
+
+### 8. Testing Resources
+
+**Integration Test Examples:**
+- See `INTEGRATION_TEST_RESULTS.md` for Context7 test results
+- Test configuration: `test-context7.yaml`
+- Pattern: Start mcp2 server, connect with SDK client, call tools
+
+**Test MCP Endpoints:**
+- Public test server: https://ne.tools (mentioned in mcptools docs)
+- Docker-based: Use official MCP servers in containers
+- Local: npx-based servers for stdio testing
+
+**Testing Auth:**
+- GitHub MCP server requires GITHUB_PERSONAL_ACCESS_TOKEN
+- Good test case for header authentication
+- Can test both header injection and env var expansion
+
+---
+
+### 9. Community Resources
+
+**MCP Discord:**
+- Active community for questions
+- Protocol clarifications from maintainers
+
+**MCP GitHub Discussions:**
+- https://github.com/modelcontextprotocol/specification/discussions
+- Design discussions, RFCs
+
+**Example Projects:**
+- Search GitHub for "MCP server" or "modelcontextprotocol"
+- Many community MCP servers for inspiration
+
+---
+
+### 10. Development Tools
+
+**Useful Commands:**
+
+```bash
+# Explore SDK types
+go doc -all github.com/modelcontextprotocol/go-sdk/mcp | grep -A5 "type.*Transport"
+
+# Find specific methods
+go doc github.com/modelcontextprotocol/go-sdk/mcp | grep -i session
+
+# Check SDK version
+go list -m github.com/modelcontextprotocol/go-sdk
+
+# Update SDK
+go get -u github.com/modelcontextprotocol/go-sdk
+
+# Build and test
+go build ./cmd/mcp2
+go test ./...
+
+# Run with race detector
+go run -race ./cmd/mcp2 serve -c config.yaml
+
+# Profile performance
+go test -cpuprofile cpu.prof -memprofile mem.prof -bench .
+```
+
+**Debugging MCP Traffic:**
+- Use `--server-logs` flag in mcptools to see server stderr
+- Add JSON-RPC logging middleware in mcp2
+- Use Wireshark/tcpdump for HTTP transport debugging
+- Check `~/.mcpt/logs/` for mcptools logs
+
+---
+
+### 11. Design Decisions & Tradeoffs
+
+**Why Official SDK over mark3labs:**
+- Official SDK from modelcontextprotocol org
+- Better maintenance and updates
+- Closer alignment with spec
+- StreamableHTTPHandler built-in
+
+**Why Not Rebuild mcptools Features:**
+- mcptools already excellent at exploration/debugging
+- Focus on complementary strengths
+- Avoid duplication, leverage ecosystem
+- See MCPTOOLS_COMPARISON.md for full analysis
+
+**Why YAML over JSON:**
+- Comments for documentation
+- More human-friendly
+- Both supported via tags
+- Standard in Kubernetes/Docker ecosystem
+
+**Why Profile-Based vs Flag-Based:**
+- Persistent configuration
+- Named profiles easier to reference
+- Multiple filtering strategies
+- Better for enterprise/production
+- mcptools guard is for quick one-offs, we're for persistent filtering
+
+---
+
+### 12. Additional Reading
+
+**Go Best Practices:**
+- Effective Go: https://go.dev/doc/effective_go
+- Go Code Review Comments: https://github.com/golang/go/wiki/CodeReviewComments
+- Uber Go Style Guide: https://github.com/uber-go/guide/blob/master/style.md
+
+**Structured Logging:**
+- slog tutorial: https://betterstack.com/community/guides/logging/logging-in-go/
+- slog handler guide: https://pkg.go.dev/log/slog#Handler
+
+**HTTP Client Patterns:**
+- RoundTripper middleware: https://medium.com/@_jesus_rafael/adding-middleware-to-go-http-client-8e5c44d8a0f4
+- Context with HTTP: https://blog.golang.org/context
+
+**Configuration Management:**
+- Viper library (if needed): https://github.com/spf13/viper
+- 12-factor config: https://12factor.net/config
+
+---
+
+## Quick Reference: Most Critical Resources
+
+**For Authentication (P0.1):**
+1. `go doc github.com/modelcontextprotocol/go-sdk/mcp.StreamableClientTransport`
+2. net/http RoundTripper pattern (see section 7)
+3. Our code: `internal/upstream/manager.go:143-150`
+
+**For SSE Support (P0.2):**
+1. `go doc github.com/modelcontextprotocol/go-sdk/mcp.SSEClientTransport`
+2. MCP SSE spec: https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/transports/#http-with-sse
+3. mcptools README examples (SSE transport section)
+
+**For Hot Reload (P1.4):**
+1. fsnotify: https://github.com/fsnotify/fsnotify
+2. Pattern in section 7
+3. Our code: `cmd/mcp2/cmd/serve.go:38-157`
+
+**For Logging (P1.5):**
+1. log/slog: https://pkg.go.dev/log/slog
+2. lumberjack: https://github.com/natefinch/lumberjack
+3. Pattern in REMAINING_WORK P1.5 section
+
+**For Parallel Aggregation (P2.7):**
+1. Goroutine pattern in section 7
+2. Our code: `internal/proxy/hub.go:101-127` (current sequential version)
+
+---
+
+**Last Updated**: Based on analysis through Phase 4 completion
+**Next Review**: After completing P0 critical path items
